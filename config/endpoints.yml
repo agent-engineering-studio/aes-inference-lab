@@ -1,0 +1,62 @@
+# Endpoint di inferenza da testare.
+# Ogni voce è un servizio compatibile con l'API OpenAI (/v1/models, /v1/chat/completions,
+# /v1/embeddings). Le variabili ${VAR} e ${VAR:-default} vengono lette dall'ambiente.
+#
+#   kind: gateway → passa dallo smistatore (LiteLLM)
+#   kind: direct  → parla direttamente al motore, salta lo smistatore
+#   role: chat | embedding | mixed
+
+defaults:
+  models_path: ${MODELS_PATH:-/srv/models}
+  health_timeout_s: 5
+  prompt: >-
+    Spiega in tre frasi perché un modello Mixture-of-Experts può girare
+    su hardware con poca memoria video.
+
+endpoints:
+  - id: gateway
+    name: Gateway LiteLLM
+    kind: gateway
+    role: mixed
+    base_url: ${GATEWAY_URL:-http://host.docker.internal:8091/v1}
+    api_key: ${LITELLM_MASTER_KEY:-}
+    note: l'indirizzo unico usato dai progetti
+    timeout_s: 900
+
+  - id: colibri
+    name: colibrì · modello grande
+    kind: direct
+    role: chat
+    base_url: ${COLIBRI_URL:-http://host.docker.internal:8070/v1}
+    default_model: ${COLIBRI_MODEL_ID:-glm52}
+    note: disco + processore, lento per costruzione
+    timeout_s: 1800
+
+  - id: llama_chat
+    name: llama.cpp · modelli piccoli
+    kind: direct
+    role: chat
+    base_url: ${LLAMA_SWAP_URL:-http://host.docker.internal:8081/v1}
+    note: scheda video, con swap dei modelli
+    timeout_s: 300
+
+  - id: llama_embed
+    name: llama.cpp · embedding
+    kind: direct
+    role: embedding
+    base_url: ${LLAMA_EMBED_URL:-http://host.docker.internal:8082/v1}
+    default_model: ${EMBED_MODEL_ID:-embed}
+    note: residente in memoria video
+    timeout_s: 120
+
+  # Servizio finto incluso nel repository: permette di provare la dashboard
+  # senza avere il server di inferenza acceso (docker compose --profile demo up).
+  - id: mock
+    name: Mock server (demo)
+    kind: direct
+    role: mixed
+    base_url: ${MOCK_URL:-http://mock:9000/v1}
+    default_model: mock-fast
+    note: motore simulato per la demo
+    enabled: ${MOCK_ENABLED:-false}
+    timeout_s: 60

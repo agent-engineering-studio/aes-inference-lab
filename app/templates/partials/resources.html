@@ -1,0 +1,52 @@
+<div class="tiles">
+  <div class="tile">
+    <div class="k">CPU</div>
+    <div class="v">{{ res.cpu_percent|fmt(0) }}%</div>
+    <div class="u">load 1m {{ res.load1|fmt(2) }}</div>
+    <div class="meter"><i style="width:{{ res.cpu_percent|round(0) }}%"></i></div>
+  </div>
+  <div class="tile">
+    <div class="k">RAM usata</div>
+    <div class="v">{{ res.ram_used_gb|fmt(1) }} <span style="font-size:12px;color:var(--ink-2)">/ {{ res.ram_total_gb|fmt(0) }} GB</span></div>
+    <div class="u">libera {{ res.ram_available_gb|fmt(1) }} GB</div>
+    {% set p = (res.ram_used_gb / res.ram_total_gb * 100) if res.ram_total_gb else 0 %}
+    <div class="meter"><i class="{{ 'bad' if p > 90 else '' }}" style="width:{{ p|round(0) }}%"></i></div>
+  </div>
+  <div class="tile">
+    <div class="k">Page cache</div>
+    <div class="v">{{ res.page_cache_gb|fmt(1) }}<span style="font-size:12px;color:var(--ink-2)"> GB</span></div>
+    <div class="u">è la cache degli esperti</div>
+    {% set pc = (res.page_cache_gb / res.ram_total_gb * 100) if res.ram_total_gb else 0 %}
+    <div class="meter"><i class="amber" style="width:{{ pc|round(0) }}%"></i></div>
+  </div>
+  <div class="tile">
+    <div class="k">Lettura disco</div>
+    <div class="v">{{ res.disk_read_mb_s|fmt(0) }}<span style="font-size:12px;color:var(--ink-2)"> MB/s</span></div>
+    <div class="u">{{ res.disk_path }}</div>
+  </div>
+  <div class="tile">
+    <div class="k">Spazio modelli</div>
+    <div class="v">{{ res.disk_used_gb|fmt(0) }}<span style="font-size:12px;color:var(--ink-2)"> / {{ res.disk_total_gb|fmt(0) }} GB</span></div>
+    <div class="u">swap {{ res.swap_used_gb|fmt(1) }} GB</div>
+    {% set dp = (res.disk_used_gb / res.disk_total_gb * 100) if res.disk_total_gb else 0 %}
+    <div class="meter"><i class="{{ 'bad' if dp > 92 else '' }}" style="width:{{ dp|round(0) }}%"></i></div>
+  </div>
+  {% for g in res.gpus %}
+  <div class="tile">
+    <div class="k">GPU {{ g.index }} · {{ g.name }}</div>
+    <div class="v">{{ (g.vram_used_mb/1024)|fmt(1) }}<span style="font-size:12px;color:var(--ink-2)"> / {{ (g.vram_total_mb/1024)|fmt(0) }} GB</span></div>
+    <div class="u">
+      {% if g.util_percent is not none %}uso {{ g.util_percent|fmt(0) }}%{% endif %}
+      {% if g.temperature_c is not none %} · {{ g.temperature_c|fmt(0) }}°C{% endif %}
+    </div>
+    {% set vp = (g.vram_used_mb / g.vram_total_mb * 100) if g.vram_total_mb else 0 %}
+    <div class="meter"><i class="amber" style="width:{{ vp|round(0) }}%"></i></div>
+  </div>
+  {% else %}
+  <div class="tile">
+    <div class="k">GPU</div>
+    <div class="v" style="font-size:15px">non rilevata</div>
+    <div class="u">serve nvidia-smi nel container</div>
+  </div>
+  {% endfor %}
+</div>

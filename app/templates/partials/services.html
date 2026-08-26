@@ -1,0 +1,26 @@
+{% for s in statuses %}
+<div class="svc">
+  <span class="dot {{ 'on' if s.online else 'off' }}" aria-hidden="true"></span>
+  <div>
+    <div class="nm">
+      {{ s.name }}
+      <span class="badge {{ 'gw' if s.kind == 'gateway' else 'direct' }}">{{ 'gateway' if s.kind == 'gateway' else 'diretto' }}</span>
+    </div>
+    <div class="meta">{{ s.base_url }}{% if s.note %} · {{ s.note }}{% endif %}</div>
+    {% if s.error %}<div class="err">{{ s.error }}</div>{% endif %}
+    {% if s.models %}
+    <div class="models">
+      {% for m in s.models[:8] %}<span class="chip">{{ m }}</span>{% endfor %}
+      {% if s.models|length > 8 %}<span class="chip">+{{ s.models|length - 8 }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="right">
+    <span class="badge {{ 'ok' if s.online else 'bad' }}">{{ 'online' if s.online else 'offline' }}</span>
+    <div style="margin-top:5px">{{ s.latency_ms|fmt(0) }} ms</div>
+    <div>{{ s.models|length }} modelli</div>
+  </div>
+</div>
+{% else %}
+<p class="empty">Nessun endpoint configurato. Controlla <code>config/endpoints.yml</code>.</p>
+{% endfor %}

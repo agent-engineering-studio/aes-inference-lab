@@ -1,0 +1,11 @@
+[Unit]
+Description=Docker containers slice
+Before=slices.target
+
+[Slice]
+# Il conflitto vero non e' il disco: e' la page cache, che fa da cache
+# degli esperti per colibri. Un container che builda la svuota.
+MemoryHigh=${DOCKER_MEMORY_HIGH}
+MemoryMax=${DOCKER_MEMORY_MAX}
+CPUWeight=50
+IOWeight=50

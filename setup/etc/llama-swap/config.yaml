@@ -1,0 +1,50 @@
+# llama-swap — modelli piccoli su GPU, uno alla volta.
+# ATTENZIONE: lo schema evolve tra le release. Confronta con l'esempio
+# nel repo (github.com/mostlygeek/llama-swap) se un avvio fallisce.
+
+healthCheckTimeout: 300
+logLevel: info
+
+macros:
+  srv: >
+    ${OPT_DIR}/llama.cpp/build/bin/llama-server
+    --host 127.0.0.1 --port ${PORT}
+    --no-warmup --metrics --flash-attn on
+
+models:
+  # Conversazionale leggero: routing, JSON vincolato, alta frequenza.
+  "chat-4b":
+    cmd: >
+      ${srv}
+      --model ${GGUF_DIR}/${HF_CHAT4B_FILE}
+      -ngl 99 -c ${CTX_CHAT4B}
+      --cache-type-k q8_0 --cache-type-v q8_0
+      -t 4
+    ttl: 600
+
+  # Prosa italiana, sintesi: dove la qualita' si vede.
+  "chat-8b":
+    cmd: >
+      ${srv}
+      --model ${GGUF_DIR}/${HF_CHAT8B_FILE}
+      -ngl 99 -c ${CTX_CHAT8B}
+      --cache-type-k q8_0 --cache-type-v q8_0
+      -t 4
+    ttl: 900
+
+  # Profilo throughput per l'estrazione entita'/relazioni di knowledge-graph:
+  # contesto corto, alta parallelizzazione. E' il carico dominante.
+  "extract-4b":
+    cmd: >
+      ${srv}
+      --model ${GGUF_DIR}/${HF_CHAT4B_FILE}
+      -ngl 99 -c ${CTX_EXTRACT}
+      --parallel ${PARALLEL_EXTRACT} --cont-batching
+      -t 4
+    ttl: 1800
+
+groups:
+  gpu:
+    swap: true        # un solo modello in VRAM alla volta
+    exclusive: false
+    members: ["chat-4b", "chat-8b", "extract-4b"]

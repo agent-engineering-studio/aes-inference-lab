@@ -1,0 +1,32 @@
+[Unit]
+Description=colibri inference server (GLM-5.2)
+After=local-fs.target
+RequiresMountsFor=${MODELS_DIR}
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${OPT_DIR}/colibri/c
+Environment=COLI_MODEL=${COLIBRI_MODEL_DIR}
+Environment=COLI_NUMA=1
+Environment=CUDA_EXPERT_GB=${COLI_CUDA_EXPERT_GB}
+Environment=COLI_CUDA_PIPE=2
+Environment=PIPE=1
+Environment=PILOT=1
+ExecStart=/usr/bin/python3 ${OPT_DIR}/colibri/c/coli serve \
+  --model ${COLIBRI_MODEL_DIR} \
+  --host 127.0.0.1 --port ${PORT_COLIBRI} \
+  --model-id ${COLI_MODEL_ID} \
+  --vram ${COLI_VRAM_GB} \
+  --kv-slots ${COLI_KV_SLOTS} \
+  --policy ${COLI_POLICY}
+Restart=always
+RestartSec=10
+# colibri ha priorita' su tutto il resto: perde 0,7 tok/s se gli togli banda I/O.
+CPUWeight=200
+IOWeight=200
+LimitNOFILE=262144
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

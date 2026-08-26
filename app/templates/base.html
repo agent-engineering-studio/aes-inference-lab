@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}AES Inference Lab{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>%F0%9F%90%A6</text></svg>">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>AES Inference Lab</h1>
+    <span class="sub">banco di prova per server di inferenza locali</span>
+    <span class="spacer"></span>
+    <button class="ghost sm" id="theme-toggle" type="button">tema</button>
+    <a class="eyebrow" href="/docs" style="color:var(--amber);text-decoration:none">API&nbsp;↗</a>
+  </div>
+  {% block content %}{% endblock %}
+  <footer class="foot">
+    AES Inference Lab · dashboard e benchmark per colibrì, llama.cpp e LiteLLM ·
+    tutti i tempi sono misurati lato client, dalla richiesta HTTP al token.
+  </footer>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

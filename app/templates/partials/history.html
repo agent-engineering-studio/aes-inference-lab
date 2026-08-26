@@ -1,0 +1,27 @@
+{% if not history %}
+  <p class="empty">Nessuna esecuzione salvata. Lancia un benchmark.</p>
+{% else %}
+<div class="tablewrap">
+<table>
+  <thead><tr>
+    <th>Quando</th><th>Etichetta</th><th>Servizio</th><th>Modello</th>
+    <th class="num">Run</th><th class="num">Conc.</th>
+    <th class="num">TTFT p50</th><th class="num">Token/s</th>
+  </tr></thead>
+  <tbody>
+  {% for h in history %}
+    <tr>
+      <td class="num" style="text-align:left">{{ h.ts | ts }}</td>
+      <td>{{ h.label or '—' }}</td>
+      <td>{{ h.endpoint_name or h.endpoint }}</td>
+      <td><span class="chip">{{ h.model }}</span></td>
+      <td class="num">{{ h.ok_runs }}/{{ h.runs }}</td>
+      <td class="num">{{ h.concurrency }}</td>
+      <td class="num">{{ h.ttft_ms_p50|fmt(0) }}</td>
+      <td class="num">{{ h.tokens_per_s_mean|fmt(2) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}

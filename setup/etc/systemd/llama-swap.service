@@ -1,0 +1,17 @@
+[Unit]
+Description=llama-swap (modelli piccoli su GPU)
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/llama-swap --config /etc/llama-swap/config.yaml --listen 127.0.0.1:${PORT_LLAMA_SWAP}
+Restart=always
+RestartSec=5
+AllowedCPUs=${SOCKET1_CPUS}
+MemoryHigh=6G
+Nice=5
+IOWeight=50
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

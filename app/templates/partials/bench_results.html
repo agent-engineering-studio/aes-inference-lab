@@ -1,0 +1,45 @@
+{% if error %}
+  <p class="empty" style="color:var(--bad)">{{ error }}</p>
+{% elif not results %}
+  <p class="empty">Nessun risultato.</p>
+{% else %}
+{% set best = results | selectattr('tokens_per_s_mean') | map(attribute='tokens_per_s_mean') | list %}
+{% set top = best | max if best else 0 %}
+<div class="tablewrap">
+<table>
+  <thead>
+    <tr>
+      <th>Servizio</th><th>Modello</th>
+      <th class="num">OK</th>
+      <th class="num">TTFT p50</th><th class="num">TTFT p95</th>
+      <th class="num">Totale p50</th>
+      <th class="num">Token/s</th><th class="num">Token out</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in results %}
+    <tr>
+      <td><strong>{{ r.endpoint_name }}</strong>
+        {% if r.error %}<div class="err">{{ r.error }}</div>{% endif %}</td>
+      <td><span class="chip">{{ r.model or '—' }}</span></td>
+      <td class="num">{{ r.ok_runs }}/{{ r.runs }}</td>
+      <td class="num">{{ r.ttft_ms_p50|fmt(0) }}</td>
+      <td class="num">{{ r.ttft_ms_p95|fmt(0) }}</td>
+      <td class="num">{{ r.total_ms_p50|fmt(0) }}</td>
+      <td class="num bar">{{ r.tokens_per_s_mean|fmt(2) }}
+        {% if r.tokens_per_s_mean and top %}
+        <i style="width:{{ (r.tokens_per_s_mean / top * 100)|round(0) }}%"></i>
+        {% endif %}
+      </td>
+      <td class="num">{{ r.output_tokens_mean|fmt(0) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="empty" style="padding-top:10px">
+  TTFT = tempo al primo token, in millisecondi. Token/s è misurato sulla sola fase di
+  generazione, escluso il TTFT.{% if req %} Prompt: «{{ req.prompt[:120] }}{% if req.prompt|length > 120 %}…{% endif %}»{% endif %}
+</p>
+<div hx-get="/ui/history" hx-target="#history" hx-trigger="load" hx-swap="innerHTML"></div>
+{% endif %}

@@ -1,0 +1,5 @@
+.env
+docs/REPORT-*.md
+docs/MISURE-*.md
+*.bak.*
+*.tar.gz

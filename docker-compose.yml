@@ -1,0 +1,51 @@
+name: aes-inference-lab
+
+services:
+  lab:
+    build: .
+    image: aes-inference-lab:latest
+    container_name: inference-lab
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LAB_CONFIG: config/endpoints.yml
+      LAB_DB_PATH: /app/data/lab.sqlite3
+      HOST_PROC: /host/proc
+      MODELS_PATH: ${MODELS_PATH:-/srv/models}
+    ports:
+      - "${LAB_PORT:-8500}:8500"
+    volumes:
+      - ./config:/app/config:ro
+      - lab-data:/app/data
+      # per leggere RAM e page cache dell'host anziché del container
+      - /proc:/host/proc:ro
+      # per mostrare lo spazio libero dove risiedono i modelli (sola lettura)
+      - ${MODELS_PATH:-/srv/models}:${MODELS_PATH:-/srv/models}:ro
+    extra_hosts:
+      # permette di raggiungere i servizi in ascolto su 127.0.0.1 dell'host
+      - "host.docker.internal:host-gateway"
+    # Limiti prudenti: la dashboard non deve rubare page cache al motore.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # Motore simulato per provare la dashboard senza il server reale:
+  #   docker compose --profile demo up
+  mock:
+    build: .
+    image: aes-inference-lab:latest
+    container_name: inference-lab-mock
+    profiles: ["demo"]
+    restart: unless-stopped
+    command: ["uvicorn", "mock.server:app", "--host", "0.0.0.0", "--port", "9000"]
+    expose:
+      - "9000"
+    ports:
+      - "${MOCK_PORT:-9000}:9000"
+
+volumes:
+  lab-data:

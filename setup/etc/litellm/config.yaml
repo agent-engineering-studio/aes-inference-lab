@@ -1,0 +1,55 @@
+# LiteLLM — gateway unico. I tre progetti puntano tutti qui e scelgono
+# per NOME MODELLO. Serve perche' limen e knowledge-graph accettano un
+# solo base_url: senza gateway non potresti mandare un ruolo a colibri
+# e un altro a llama-swap.
+
+model_list:
+  - model_name: fast
+    litellm_params:
+      model: openai/chat-4b
+      api_base: http://127.0.0.1:${PORT_LLAMA_SWAP}/v1
+      api_key: dummy
+
+  - model_name: chat
+    litellm_params:
+      model: openai/chat-8b
+      api_base: http://127.0.0.1:${PORT_LLAMA_SWAP}/v1
+      api_key: dummy
+
+  - model_name: extract
+    litellm_params:
+      model: openai/extract-4b
+      api_base: http://127.0.0.1:${PORT_LLAMA_SWAP}/v1
+      api_key: dummy
+
+  - model_name: embed
+    litellm_params:
+      model: openai/embed
+      api_base: http://127.0.0.1:${PORT_EMBED}/v1
+      api_key: dummy
+
+  # ── Tier qualita', opzione A: locale ──────────────────────
+  - model_name: quality-local
+    litellm_params:
+      model: openai/glm52
+      api_base: http://127.0.0.1:${PORT_COLIBRI}/v1
+      api_key: dummy
+      timeout: 5400        # 90 min: un report da 4k token a ~1,5 tok/s
+
+  # ── Tier qualita', opzione B: Claude ──────────────────────
+  # Attivo solo se ANTHROPIC_API_KEY e' valorizzata in /etc/litellm/env.
+  - model_name: quality-cloud
+    litellm_params:
+      model: ${LITELLM_CLOUD_MODEL}
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  fallbacks:
+    - quality-local: ["quality-cloud"]
+
+litellm_settings:
+  # Un job schedulato che entra in loop su un endpoint a pagamento e' il
+  # modo piu' comune di scoprire il proprio limite di carta di credito.
+  max_budget: ${LITELLM_MAX_BUDGET}
+  budget_duration: ${LITELLM_BUDGET_DURATION}
+  drop_params: true
