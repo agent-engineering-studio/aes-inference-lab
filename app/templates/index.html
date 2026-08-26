@@ -3,23 +3,23 @@
 
 <section class="panel">
   <header>
-    <h2>Risorse del server</h2>
+    <h2>Server resources</h2>
     <span class="spacer"></span>
-    <span class="eyebrow">aggiornamento ogni 3 s</span>
+    <span class="eyebrow">refresh every 3 s</span>
   </header>
   <div class="body tight"
        hx-get="/ui/resources" hx-trigger="load, every 3s" hx-swap="innerHTML">
-    <p class="empty">Lettura risorse…</p>
+    <p class="empty">Reading resources…</p>
   </div>
 </section>
 
 <section class="panel">
   <header>
-    <h2>Servizi di inferenza</h2>
+    <h2>Inference services</h2>
     <span class="spacer"></span>
-    <span class="spin">verifica…</span>
+    <span class="spin">checking…</span>
     <button class="ghost sm" hx-get="/ui/services" hx-target="#services"
-            hx-swap="innerHTML" hx-indicator="closest header">ricontrolla</button>
+            hx-swap="innerHTML" hx-indicator="closest header">recheck</button>
   </header>
   <div class="body tight" id="services"
        hx-get="/ui/services" hx-trigger="every 15s" hx-swap="innerHTML">
@@ -30,19 +30,19 @@
 <div class="grid cols-2">
 
   <section class="panel">
-    <header><h2>Benchmark</h2><span class="spacer"></span><span class="spin">in corso…</span></header>
+    <header><h2>Benchmark</h2><span class="spacer"></span><span class="spin">running…</span></header>
     <div class="body">
       <form hx-post="/ui/bench" hx-target="#bench-results" hx-swap="innerHTML"
             hx-indicator="closest .panel">
         <div class="field">
-          <label>Servizi da confrontare</label>
+          <label>Services to compare</label>
           <div class="checks">
             {% for e in endpoints %}
             <label>
               <input type="checkbox" name="endpoint" value="{{ e.id }}"
                      {% if e.role != 'embedding' %}checked{% endif %}>
               {{ e.name }}
-              <span class="badge {{ 'gw' if e.kind == 'gateway' else 'direct' }}">{{ 'gateway' if e.kind == 'gateway' else 'diretto' }}</span>
+              <span class="badge {{ 'gw' if e.kind == 'gateway' else 'direct' }}">{{ 'gateway' if e.kind == 'gateway' else 'direct' }}</span>
             </label>
             {% endfor %}
           </div>
@@ -53,31 +53,31 @@
         </div>
         <div class="row">
           <div class="field">
-            <label for="b-model">Modello</label>
+            <label for="b-model">Model</label>
             <input id="b-model" type="text" name="model" placeholder="auto">
           </div>
           <div class="field">
-            <label for="b-runs">Esecuzioni</label>
+            <label for="b-runs">Runs</label>
             <input id="b-runs" type="number" name="runs" value="3" min="1" max="50">
           </div>
           <div class="field">
-            <label for="b-conc">Parallele</label>
+            <label for="b-conc">Parallel</label>
             <input id="b-conc" type="number" name="concurrency" value="1" min="1" max="16">
           </div>
           <div class="field">
-            <label for="b-max">Max token</label>
+            <label for="b-max">Max tokens</label>
             <input id="b-max" type="number" name="max_tokens" value="128" min="1" max="4096">
           </div>
         </div>
         <div class="field">
-          <label for="b-label">Etichetta (per lo storico)</label>
-          <input id="b-label" type="text" name="label" placeholder="es. dopo aumento RAM">
+          <label for="b-label">Label (for the history)</label>
+          <input id="b-label" type="text" name="label" placeholder="e.g. after RAM upgrade">
         </div>
-        <button type="submit">Esegui benchmark</button>
+        <button type="submit">Run benchmark</button>
       </form>
       <p class="empty" style="padding:12px 0 0">
-        I risultati compaiono nel riquadro sotto. Il primo giro su colibrì può
-        richiedere minuti: il modello viene letto dal disco.
+        The results appear in the box below. The first run on colibrì can
+        take minutes: the model is read from disk.
       </p>
     </div>
   </section>
@@ -88,7 +88,7 @@
       <form id="chat-form">
         <div class="row">
           <div class="field">
-            <label for="c-endpoint">Servizio</label>
+            <label for="c-endpoint">Service</label>
             <select id="c-endpoint" name="endpoint">
               {% for e in endpoints if e.role != 'embedding' %}
               <option value="{{ e.id }}" data-default="{{ e.default_model }}">{{ e.name }}</option>
@@ -96,11 +96,11 @@
             </select>
           </div>
           <div class="field">
-            <label for="c-model">Modello</label>
+            <label for="c-model">Model</label>
             <input id="c-model" type="text" name="model" placeholder="auto">
           </div>
           <div class="field">
-            <label for="c-max">Max token</label>
+            <label for="c-max">Max tokens</label>
             <input id="c-max" type="number" name="max_tokens" value="256" min="1" max="4096">
           </div>
         </div>
@@ -108,8 +108,8 @@
           <label for="c-prompt">Prompt</label>
           <textarea id="c-prompt" name="prompt">{{ default_prompt }}</textarea>
         </div>
-        <button type="submit" id="c-send">Invia in streaming</button>
-        <button type="button" class="ghost" id="c-stop">Ferma</button>
+        <button type="submit" id="c-send">Send streaming</button>
+        <button type="button" class="ghost" id="c-stop">Stop</button>
       </form>
       <div class="out" id="c-out" style="margin-top:14px"></div>
       <div class="statline" id="c-stats"></div>
@@ -119,19 +119,19 @@
 </div>
 
 <section class="panel">
-  <header><h2>Risultati del benchmark</h2></header>
+  <header><h2>Benchmark results</h2></header>
   <div class="body tight" id="bench-results">
-    <p class="empty">Nessun benchmark eseguito in questa sessione.</p>
+    <p class="empty">No benchmark run in this session.</p>
   </div>
 </section>
 
 <section class="panel">
-  <header><h2>Ricerca semantica · embedding</h2></header>
+  <header><h2>Semantic search · embedding</h2></header>
   <div class="body">
     <form id="embed-form">
       <div class="row">
         <div class="field">
-          <label for="e-endpoint">Servizio</label>
+          <label for="e-endpoint">Service</label>
           <select id="e-endpoint" name="endpoint">
             {% for e in endpoints if e.role in ('embedding', 'mixed', 'chat') %}
             <option value="{{ e.id }}">{{ e.name }}</option>
@@ -139,17 +139,17 @@
           </select>
         </div>
         <div class="field">
-          <label for="e-model">Modello</label>
-          <input id="e-model" type="text" name="model" placeholder="es. embed">
+          <label for="e-model">Model</label>
+          <input id="e-model" type="text" name="model" placeholder="e.g. embed">
         </div>
       </div>
       <div class="field">
-        <label for="e-texts">Frasi da confrontare (una per riga, minimo 2)</label>
-        <textarea id="e-texts" name="texts">Il server legge gli esperti dal disco NVMe.
-Il modello viene caricato interamente in memoria video.
-Gli esperti non usati restano fermi sull'unità a stato solido.</textarea>
+        <label for="e-texts">Sentences to compare (one per line, minimum 2)</label>
+        <textarea id="e-texts" name="texts">The server reads the experts from the NVMe disk.
+The model is loaded entirely into video memory.
+The unused experts stay idle on the solid-state drive.</textarea>
       </div>
-      <button type="submit">Calcola similarità</button>
+      <button type="submit">Compute similarity</button>
     </form>
     <div id="e-out" style="margin-top:14px"></div>
   </div>
@@ -157,10 +157,10 @@ Gli esperti non usati restano fermi sull'unità a stato solido.</textarea>
 
 <section class="panel">
   <header>
-    <h2>Storico esecuzioni</h2>
+    <h2>Run history</h2>
     <span class="spacer"></span>
     <button class="ghost sm" hx-delete="/ui/history" hx-target="#history"
-            hx-swap="innerHTML" hx-confirm="Cancellare tutto lo storico?">svuota</button>
+            hx-swap="innerHTML" hx-confirm="Clear the entire history?">clear</button>
   </header>
   <div class="body tight" id="history">
     {% include "partials/history.html" %}

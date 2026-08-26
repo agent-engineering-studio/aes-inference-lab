@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Legge l'hardware e compila .env con i valori corretti.
+# Reads the hardware and fills .env with the correct values.
 #
-#   ./scripts/01-autoconfig.sh              interattivo
-#   ./scripts/01-autoconfig.sh --dry-run    mostra soltanto la proposta
-#   ./scripts/01-autoconfig.sh --no-models  salta la ricerca su Hugging Face
-#   ASSUME_YES=1 ./scripts/01-autoconfig.sh sceglie da solo il primo candidato
+#   ./scripts/01-autoconfig.sh              interactive
+#   ./scripts/01-autoconfig.sh --dry-run    only show the proposal
+#   ./scripts/01-autoconfig.sh --no-models  skip the Hugging Face search
+#   ASSUME_YES=1 ./scripts/01-autoconfig.sh picks the first candidate on its own
 #
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/lib/common.sh"
@@ -15,14 +15,14 @@ for a in "$@"; do
     --dry-run)   DRY_RUN=1 ;;
     --no-models) DO_MODELS=0 ;;
     --yes|-y)    export ASSUME_YES=1 ;;
-    *) die "argomento sconosciuto: $a" ;;
+    *) die "unknown argument: $a" ;;
   esac
 done
 
 ENV_FILE="$ROOT/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   cp "$ROOT/.env.example" "$ENV_FILE"
-  ok "creato .env da .env.example"
+  ok "created .env from .env.example"
 fi
 
 declare -A NEW=()
@@ -39,89 +39,89 @@ if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
   ok "$GPU_NAME — compute_cap $CC — ${VRAM_MIB} MiB"
   propose CUDA_ARCH "${CC//./}"
 
-  # Su Turing+ la GPU rende molto di piu' ai modelli piccoli: 6 GB di tier
-  # esperti sono ~315 dei 19.456 esperti di GLM-5.2, l'1,6%. Su Pascal non
-  # c'e' fp16 utilizzabile e la scelta si inverte.
+  # On Turing+ the GPU is far more valuable to the small models: 6 GB of expert
+  # tiers is ~315 of GLM-5.2's 19,456 experts, 1.6%. On Pascal there is no
+  # usable fp16 and the choice flips.
   CC_MAJOR="${CC%%.*}"
   if (( CC_MAJOR >= 7 )); then
     propose COLI_CUDA_EXPERT_GB 0
     COLI_VRAM_MIB=1536
-    ok "Turing o superiore: GPU ai modelli piccoli, colibri con CUDA_EXPERT_GB=0"
+    ok "Turing or newer: GPU to the small models, colibri with CUDA_EXPERT_GB=0"
   else
     RESERVE=$(( VRAM_MIB > 2048 ? VRAM_MIB - 1024 : 0 ))
     propose COLI_CUDA_EXPERT_GB $(( RESERVE / 1024 ))
     COLI_VRAM_MIB="$RESERVE"
-    warn "Pascal o precedente: niente fp16/bf16 utilizzabili"
-    warn "  → GPU a colibri, llama.cpp su CPU (metti -ngl 0 in etc/llama-swap/config.yaml)"
+    warn "Pascal or earlier: no usable fp16/bf16"
+    warn "  → GPU to colibri, llama.cpp on CPU (set -ngl 0 in etc/llama-swap/config.yaml)"
   fi
 
-  # Contesti in base alla VRAM che resta a llama.cpp.
+  # Contexts based on the VRAM left to llama.cpp.
   USABLE=$(( VRAM_MIB - COLI_VRAM_MIB - 512 ))
-  ok "VRAM per llama.cpp: ~${USABLE} MiB"
+  ok "VRAM for llama.cpp: ~${USABLE} MiB"
   if   (( USABLE >= 6000 )); then propose CTX_CHAT4B 32768; propose CTX_CHAT8B 16384
   elif (( USABLE >= 4500 )); then propose CTX_CHAT4B 32768; propose CTX_CHAT8B 8192
   elif (( USABLE >= 3000 )); then propose CTX_CHAT4B 16384; propose CTX_CHAT8B 8192
   else propose CTX_CHAT4B 8192; propose CTX_CHAT8B 4096
-       warn "VRAM stretta: valuta di rinunciare all'8B"
+       warn "tight VRAM: consider dropping the 8B"
   fi
-  warn "i contesti sono una stima: verificali con 'nvidia-smi' a modello caricato"
+  warn "the contexts are an estimate: verify them with 'nvidia-smi' once the model is loaded"
 else
-  warn "driver NVIDIA assente: salto CUDA_ARCH e contesti"
+  warn "NVIDIA driver absent: skipping CUDA_ARCH and contexts"
 fi
 
-# ── CPU e NUMA ───────────────────────────────────────────────
-step "CPU e NUMA"
+# ── CPU and NUMA ─────────────────────────────────────────────
+step "CPU and NUMA"
 CPUS=$(socket_cpus 1)
 NPROC=$(nproc)
 if [[ -n "$CPUS" ]]; then
   propose SOCKET1_CPUS "$CPUS"
   ok "socket 1: $CPUS"
 else
-  warn "single socket: lascio SOCKET1_CPUS vuoto (AllowedCPUs verra' omesso)"
+  warn "single socket: leaving SOCKET1_CPUS empty (AllowedCPUs will be omitted)"
 fi
 if   (( NPROC >= 24 )); then propose PARALLEL_EXTRACT 8
 elif (( NPROC >= 12 )); then propose PARALLEL_EXTRACT 6
 else propose PARALLEL_EXTRACT 4; fi
-ok "$NPROC thread → PARALLEL_EXTRACT $(printf '%s' "${NEW[PARALLEL_EXTRACT]}")"
+ok "$NPROC threads → PARALLEL_EXTRACT $(printf '%s' "${NEW[PARALLEL_EXTRACT]}")"
 
-# ── RAM e budget Docker ──────────────────────────────────────
+# ── RAM and Docker budget ────────────────────────────────────
 step "RAM"
 RAM_GB=$(free -g | awk '/^Mem:/{print $2}')
-ok "${RAM_GB} GiB totali"
-# Riservati: set denso colibri 10 + llama 1 + litellm/embed 2 + OS 2 = 15,
-# piu' almeno 6 GiB di cache esperti, che e' la leva della tok/s.
+ok "${RAM_GB} GiB total"
+# Reserved: colibri dense set 10 + llama 1 + litellm/embed 2 + OS 2 = 15,
+# plus at least 6 GiB of expert cache, which is the tok/s lever.
 DH=$(( RAM_GB - 23 )); (( DH < 4 )) && DH=4; (( DH > 16 )) && DH=16
 propose DOCKER_MEMORY_HIGH "${DH}G"
 propose DOCKER_MEMORY_MAX  "$(( DH + 3 ))G"
 ok "docker.slice: MemoryHigh=${DH}G MemoryMax=$(( DH + 3 ))G"
 if (( RAM_GB < 64 )); then
-  warn "con ${RAM_GB} GiB la cache esperti resta sotto il 2% del modello."
-  warn "  portare la RAM a 128 GB e' l'upgrade con il ritorno piu' alto su questo server."
+  warn "with ${RAM_GB} GiB the expert cache stays below 2% of the model."
+  warn "  bringing the RAM to 128 GB is the highest-return upgrade on this server."
 fi
 
 # ── Storage ──────────────────────────────────────────────────
 step "Storage"
 for pair in "MODELS_DIR:/srv/models" "ARCHIVE_DIR:/srv/archive"; do
   var="${pair%%:*}"; path="${pair##*:}"
-  if findmnt -n "$path" >/dev/null 2>&1; then propose "$var" "$path"; ok "$path montato"
-  else warn "$path NON montato: verifica lo storage prima di procedere"; fi
+  if findmnt -n "$path" >/dev/null 2>&1; then propose "$var" "$path"; ok "$path mounted"
+  else warn "$path NOT mounted: check the storage before proceeding"; fi
 done
 propose HF_HOME "$(printf '%s' "${NEW[ARCHIVE_DIR]:-/srv/archive}")/hf"
 propose GGUF_DIR "$(printf '%s' "${NEW[MODELS_DIR]:-/srv/models}")/gguf"
 propose COLIBRI_MODEL_DIR "$(printf '%s' "${NEW[MODELS_DIR]:-/srv/models}")/colibri/glm52_i4"
 
-# ── Porte ────────────────────────────────────────────────────
-step "Porte"
+# ── Ports ────────────────────────────────────────────────────
+step "Ports"
 for pair in "PORT_COLIBRI:8070" "PORT_LLAMA_SWAP:8081" "PORT_EMBED:8082" "PORT_LITELLM:8091"; do
   var="${pair%%:*}"; p="$(cur "$var")"; p="${p:-${pair##*:}}"
-  if port_free "$p"; then ok "$var=$p libera"
-  else warn "$var=$p GIA' OCCUPATA da: $(ss -tlnpH "sport = :$p" | head -1 | sed 's/.*users:((//;s/).*//')"; fi
+  if port_free "$p"; then ok "$var=$p free"
+  else warn "$var=$p ALREADY IN USE by: $(ss -tlnpH "sport = :$p" | head -1 | sed 's/.*users:((//;s/).*//')"; fi
 done
 
-# ── Modelli su Hugging Face ──────────────────────────────────
+# ── Models on Hugging Face ───────────────────────────────────
 hf_tree() { curl -fsSL --max-time 20 "https://huggingface.co/api/models/$1/tree/main?recursive=true" 2>/dev/null; }
 
-hf_find() {   # search min_bytes max_bytes  →  righe "repo<TAB>file<TAB>GB"
+hf_find() {   # search min_bytes max_bytes  →  lines "repo<TAB>file<TAB>GB"
   local q="$1" lo="$2" hi="$3" repo
   curl -fsSL --max-time 20 \
     "https://huggingface.co/api/models?search=$(printf '%s' "$q" | sed 's/ /+/g')&filter=gguf&sort=downloads&direction=-1&limit=12" \
@@ -135,12 +135,12 @@ hf_find() {   # search min_bytes max_bytes  →  righe "repo<TAB>file<TAB>GB"
     done | head -8
 }
 
-pick_model() {  # etichetta var_repo var_file search lo hi
+pick_model() {  # label var_repo var_file search lo hi
   local label="$1" vrepo="$2" vfile="$3" q="$4" lo="$5" hi="$6"
-  step "Modello $label — cerco su Hugging Face: \"$q\""
+  step "Model $label — searching Hugging Face: \"$q\""
   mapfile -t C < <(hf_find "$q" "$lo" "$hi")
   if [[ ${#C[@]} -eq 0 ]]; then
-    warn "nessun candidato per \"$q\". Compila a mano $vrepo e $vfile in .env"
+    warn "no candidate for \"$q\". Fill in $vrepo and $vfile in .env by hand"
     return
   fi
   local i=1
@@ -150,8 +150,8 @@ pick_model() {  # etichetta var_repo var_file search lo hi
   done
   local sel=1
   if [[ "${ASSUME_YES:-0}" != "1" ]]; then
-    read -r -p "$(printf '%s  ?? %sscegli [1-%d, invio=1, s=salta] ' "$C_YEL" "$C_OFF" "${#C[@]}")" sel
-    [[ "$sel" == "s" ]] && { warn "saltato $label"; return; }
+    read -r -p "$(printf '%s  ?? %schoose [1-%d, enter=1, s=skip] ' "$C_YEL" "$C_OFF" "${#C[@]}")" sel
+    [[ "$sel" == "s" ]] && { warn "skipped $label"; return; }
     sel="${sel:-1}"
   fi
   local chosen="${C[$((sel-1))]}"
@@ -166,46 +166,46 @@ if [[ "$DO_MODELS" == "1" ]]; then
     SEARCH_8B="${SEARCH_8B:-Qwen3-8B GGUF}"
     pick_model "4B"  HF_CHAT4B_REPO HF_CHAT4B_FILE "$SEARCH_4B" 2000000000 3600000000
     pick_model "8B"  HF_CHAT8B_REPO HF_CHAT8B_FILE "$SEARCH_8B" 4000000000 6200000000
-    warn "per cercare altre famiglie: SEARCH_4B='gemma-3-4b-it GGUF' $0"
+    warn "to search other families: SEARCH_4B='gemma-3-4b-it GGUF' $0"
   else
-    warn "servono jq e curl per la ricerca su Hugging Face: apt install jq curl"
+    warn "jq and curl are required for the Hugging Face search: apt install jq curl"
   fi
 fi
 
-# ── Applica ──────────────────────────────────────────────────
-step "Differenze rispetto a .env"
+# ── Apply ────────────────────────────────────────────────────
+step "Differences from .env"
 CHANGED=0
 for k in $(printf '%s\n' "${!NEW[@]}" | sort); do
   old="$(cur "$k")"; new="${NEW[$k]}"
   if [[ "$old" == "$new" ]]; then
-    printf '     %-22s %s %s(invariato)%s\n' "$k" "$new" "$C_DIM" "$C_OFF"
+    printf '     %-22s %s %s(unchanged)%s\n' "$k" "$new" "$C_DIM" "$C_OFF"
   else
-    printf '     %-22s %s%s%s → %s%s%s\n' "$k" "$C_DIM" "${old:-<vuoto>}" "$C_OFF" "$C_GRN" "$new" "$C_OFF"
+    printf '     %-22s %s%s%s → %s%s%s\n' "$k" "$C_DIM" "${old:-<empty>}" "$C_OFF" "$C_GRN" "$new" "$C_OFF"
     CHANGED=1
   fi
 done
 
-if [[ "$CHANGED" -eq 0 ]]; then ok ".env gia' allineato all'hardware"; exit 0; fi
-if [[ "$DRY_RUN" == "1" ]]; then warn "--dry-run: non scrivo nulla"; exit 0; fi
-confirm "scrivo queste modifiche in .env?" || { warn "annullato"; exit 0; }
+if [[ "$CHANGED" -eq 0 ]]; then ok ".env already aligned with the hardware"; exit 0; fi
+if [[ "$DRY_RUN" == "1" ]]; then warn "--dry-run: writing nothing"; exit 0; fi
+confirm "write these changes to .env?" || { warn "cancelled"; exit 0; }
 
 cp -a "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
 for k in "${!NEW[@]}"; do
   v="${NEW[$k]}"
   if grep -qE "^$k=" "$ENV_FILE"; then
-    # delimitatore | e valore senza | : i path non ne contengono
+    # | delimiter and a value without | : the paths do not contain any
     sed -i "s|^$k=.*|$k=$v|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$k" "$v" >> "$ENV_FILE"
   fi
 done
-ok "scritto $ENV_FILE (backup accanto)"
+ok "written $ENV_FILE (backup alongside)"
 
-step "Cosa resta da fare a mano"
+step "What is left to do by hand"
 [[ -n "$(cur ANTHROPIC_API_KEY)" ]] \
-  && ok "ANTHROPIC_API_KEY presente: il tier 'quality-cloud' sara' attivo" \
-  || warn "ANTHROPIC_API_KEY vuota: resta solo 'quality-local' (colibri). Opzionale."
+  && ok "ANTHROPIC_API_KEY present: the 'quality-cloud' tier will be active" \
+  || warn "ANTHROPIC_API_KEY empty: only 'quality-local' (colibri) remains. Optional."
 for v in HF_CHAT4B_REPO HF_CHAT4B_FILE HF_CHAT8B_REPO HF_CHAT8B_FILE; do
-  [[ -n "$(cur "$v")" ]] || warn "$v ancora vuoto"
+  [[ -n "$(cur "$v")" ]] || warn "$v still empty"
 done
-ok "ora: sudo ./install.sh 02   (preflight)"
+ok "now: sudo ./install.sh 02   (preflight)"

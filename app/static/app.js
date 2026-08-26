@@ -1,23 +1,23 @@
-/* AES Inference Lab — streaming chat, embedding, tema */
+/* AES Inference Lab — streaming chat, embedding, theme */
 (() => {
   "use strict";
 
-  /* ---------- tema ---------- */
+  /* ---------- theme ---------- */
   const root = document.documentElement;
   try {
     const saved = localStorage.getItem("lab-theme");
     if (saved) root.setAttribute("data-theme", saved);
-  } catch (_) { /* storage non disponibile */ }
+  } catch (_) { /* storage not available */ }
 
   document.getElementById("theme-toggle")?.addEventListener("click", () => {
     const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const now = root.getAttribute("data-theme") || (dark ? "dark" : "light");
     const next = now === "dark" ? "light" : "dark";
     root.setAttribute("data-theme", next);
-    try { localStorage.setItem("lab-theme", next); } catch (_) { /* ignora */ }
+    try { localStorage.setItem("lab-theme", next); } catch (_) { /* ignore */ }
   });
 
-  /* ---------- chat in streaming ---------- */
+  /* ---------- streaming chat ---------- */
   const form = document.getElementById("chat-form");
   const out = document.getElementById("c-out");
   const stats = document.getElementById("c-stats");
@@ -35,7 +35,7 @@
     out.textContent = "";
     stats.innerHTML = "";
     sendBtn.disabled = true;
-    sendBtn.textContent = "in corso…";
+    sendBtn.textContent = "in progress…";
 
     const sel = document.getElementById("c-endpoint");
     const body = {
@@ -78,21 +78,21 @@
             out.scrollTop = out.scrollHeight;
           } else if (event === "done") {
             stats.innerHTML = [
-              ["primo token", `${fmt(payload.ttft_ms)} ms`],
-              ["totale", `${fmt(payload.total_ms)} ms`],
+              ["first token", `${fmt(payload.ttft_ms)} ms`],
+              ["total", `${fmt(payload.total_ms)} ms`],
               ["token", `${payload.output_tokens}`],
-              ["velocità", `${fmt(payload.tokens_per_s, 2)} tok/s`],
+              ["speed", `${fmt(payload.tokens_per_s, 2)} tok/s`],
             ].map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("");
           } else if (event === "error") {
-            out.textContent += `\n\n[errore] ${payload.error}`;
+            out.textContent += `\n\n[error] ${payload.error}`;
           }
         }
       }
     } catch (err) {
-      if (err.name !== "AbortError") out.textContent += `\n\n[errore] ${err.message}`;
+      if (err.name !== "AbortError") out.textContent += `\n\n[error] ${err.message}`;
     } finally {
       sendBtn.disabled = false;
-      sendBtn.textContent = "Invia in streaming";
+      sendBtn.textContent = "Send streaming";
       controller = null;
     }
   });
@@ -111,10 +111,10 @@
     const texts = document.getElementById("e-texts").value
       .split("\n").map((s) => s.trim()).filter(Boolean);
     if (texts.length < 2) {
-      eOut.innerHTML = '<p class="empty" style="color:var(--bad)">Servono almeno due frasi.</p>';
+      eOut.innerHTML = '<p class="empty" style="color:var(--bad)">At least two sentences are required.</p>';
       return;
     }
-    eOut.innerHTML = '<p class="empty">Calcolo…</p>';
+    eOut.innerHTML = '<p class="empty">Computing…</p>';
     try {
       const res = await fetch("/api/embed", {
         method: "POST",
@@ -136,11 +136,11 @@
 
       eOut.innerHTML = `
         <div class="tablewrap"><table class="heat">
-          <thead><tr><th>Frase</th>${head}</tr></thead>
+          <thead><tr><th>Sentence</th>${head}</tr></thead>
           <tbody>${rows}</tbody></table></div>
-        <div class="statline"><span>dimensioni <b>${data.dimensions}</b></span>
-          <span>latenza <b>${fmt(data.latency_ms)} ms</b></span>
-          <span>modello <b>${data.model}</b></span></div>`;
+        <div class="statline"><span>dimensions <b>${data.dimensions}</b></span>
+          <span>latency <b>${fmt(data.latency_ms)} ms</b></span>
+          <span>model <b>${data.model}</b></span></div>`;
     } catch (err) {
       eOut.innerHTML = `<p class="empty" style="color:var(--bad)">${err.message}</p>`;
     }

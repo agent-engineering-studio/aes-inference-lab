@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Orchestratore. Esegue le fasi in ordine, fermandosi al primo errore.
+# Orchestrator. Runs the phases in order, stopping at the first error.
 #
-#   sudo ./install.sh              tutte le fasi, con conferme
-#   sudo ./install.sh --yes        senza conferme (attenzione: scarica 372 GB)
-#   sudo ./install.sh 20 40        solo le fasi indicate
+#   sudo ./install.sh              all phases, with confirmations
+#   sudo ./install.sh --yes        no confirmations (warning: downloads 372 GB)
+#   sudo ./install.sh 20 40        only the specified phases
 #
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/lib/common.sh"
@@ -27,12 +27,12 @@ else
   for a in "${ARGS[@]}"; do
     for p in "${PHASES[@]}"; do [[ "$p" == "$a"* ]] && selected+=("$p"); done
   done
-  [[ ${#selected[@]} -gt 0 ]] || die "nessuna fase corrisponde a: ${ARGS[*]}"
+  [[ ${#selected[@]} -gt 0 ]] || die "no phase matches: ${ARGS[*]}"
 fi
 
-log "fasi da eseguire: ${selected[*]}"
+log "phases to run: ${selected[*]}"
 for p in "${selected[@]}"; do
-  step "FASE $p"
-  bash "$ROOT/scripts/$p.sh" || die "fase $p fallita"
+  step "PHASE $p"
+  bash "$ROOT/scripts/$p.sh" || die "phase $p failed"
 done
-ok "completato"
+ok "done"

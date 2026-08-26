@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# daemon.json, docker.slice, timer di prune.
+# daemon.json, docker.slice, prune timer.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/lib/common.sh"
 load_env "$ROOT"
@@ -7,9 +7,9 @@ need_root
 need_cmd docker
 need_cmd jq
 
-step "Verifica che /var/lib/docker sia sui meccanici"
+step "Check that /var/lib/docker is on the spinning disks"
 src=$(findmnt -no SOURCE /var/lib/docker 2>/dev/null || true)
-[[ -n "$src" ]] || die "/var/lib/docker non e' un mount separato: i layer stanno su lv_root"
+[[ -n "$src" ]] || die "/var/lib/docker is not a separate mount: the layers are on lv_root"
 ok "$src"
 
 step "daemon.json"
@@ -34,7 +34,7 @@ tmp=$(mktemp)
 envsubst '$DOCKER_MEMORY_HIGH $DOCKER_MEMORY_MAX' < "$ROOT/etc/systemd/docker.slice" > "$tmp"
 install_file "$tmp" /etc/systemd/system/docker.slice; rm -f "$tmp"
 
-step "Timer di pulizia"
+step "Cleanup timer"
 install_file "$ROOT/etc/systemd/stack-prune.service" /etc/systemd/system/stack-prune.service
 install_file "$ROOT/etc/systemd/stack-prune.timer"   /etc/systemd/system/stack-prune.timer
 
@@ -43,5 +43,5 @@ systemctl enable --now stack-prune.timer
 systemctl restart docker
 sleep 3
 docker info --format '     Root Dir: {{.DockerRootDir}}\n     Driver:   {{.Driver}}\n     Cgroup:   {{.CgroupDriver}}'
-ok "Docker configurato"
-warn "il conflitto vero non e' il disco: e' la page cache, che fa da cache esperti a colibri"
+ok "Docker configured"
+warn "the real contention is not the disk: it is the page cache, which acts as colibri's expert cache"

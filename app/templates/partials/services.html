@@ -4,7 +4,7 @@
   <div>
     <div class="nm">
       {{ s.name }}
-      <span class="badge {{ 'gw' if s.kind == 'gateway' else 'direct' }}">{{ 'gateway' if s.kind == 'gateway' else 'diretto' }}</span>
+      <span class="badge {{ 'gw' if s.kind == 'gateway' else 'direct' }}">{{ 'gateway' if s.kind == 'gateway' else 'direct' }}</span>
     </div>
     <div class="meta">{{ s.base_url }}{% if s.note %} · {{ s.note }}{% endif %}</div>
     {% if s.error %}<div class="err">{{ s.error }}</div>{% endif %}
@@ -18,9 +18,9 @@
   <div class="right">
     <span class="badge {{ 'ok' if s.online else 'bad' }}">{{ 'online' if s.online else 'offline' }}</span>
     <div style="margin-top:5px">{{ s.latency_ms|fmt(0) }} ms</div>
-    <div>{{ s.models|length }} modelli</div>
+    <div>{{ s.models|length }} models</div>
   </div>
 </div>
 {% else %}
-<p class="empty">Nessun endpoint configurato. Controlla <code>config/endpoints.yml</code>.</p>
+<p class="empty">No endpoint configured. Check <code>config/endpoints.yml</code>.</p>
 {% endfor %}

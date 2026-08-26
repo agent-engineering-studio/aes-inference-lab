@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Funzioni condivise. Va sourced, non eseguito.
+# Shared functions. Meant to be sourced, not executed.
 
 set -euo pipefail
 
@@ -16,47 +16,47 @@ ASSUME_YES="${ASSUME_YES:-0}"
 
 confirm() {
   local prompt="$1"
-  [[ "$ASSUME_YES" == "1" ]] && { ok "auto-conferma: $prompt"; return 0; }
+  [[ "$ASSUME_YES" == "1" ]] && { ok "auto-confirm: $prompt"; return 0; }
   local reply
-  read -r -p "$(printf '%s  ?? %s%s [s/N] ' "$C_YEL" "$C_OFF" "$prompt")" reply
+  read -r -p "$(printf '%s  ?? %s%s [y/N] ' "$C_YEL" "$C_OFF" "$prompt")" reply
   [[ "$reply" =~ ^[sSyY]$ ]]
 }
 
-need_root()  { [[ $EUID -eq 0 ]] || die "serve root: rilancia con sudo"; }
-need_cmd()   { command -v "$1" >/dev/null 2>&1 || die "comando mancante: $1"; }
+need_root()  { [[ $EUID -eq 0 ]] || die "root required: re-run with sudo"; }
+need_cmd()   { command -v "$1" >/dev/null 2>&1 || die "missing command: $1"; }
 
 need_mount() {
-  findmnt -n "$1" >/dev/null 2>&1 || die "non montato: $1 (completa prima il setup storage)"
+  findmnt -n "$1" >/dev/null 2>&1 || die "not mounted: $1 (complete the storage setup first)"
 }
 
-# Carica .env accanto al repo, poi eventuale override locale.
+# Load .env next to the repo, then an optional local override.
 load_env() {
   local root="$1"
-  [[ -f "$root/.env" ]] || die "manca $root/.env — copia .env.example e adattalo"
+  [[ -f "$root/.env" ]] || die "missing $root/.env — copy .env.example and adapt it"
   set -a
   # shellcheck disable=SC1090
   source "$root/.env"
   set +a
 }
 
-# Scrive un file solo se cambia, mostrando il diff. Idempotente.
+# Writes a file only if it changes, showing the diff. Idempotent.
 install_file() {
   local src="$1" dst="$2" mode="${3:-0644}"
   if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
-    ok "invariato $dst"
+    ok "unchanged $dst"
     return 0
   fi
   if [[ -f "$dst" ]]; then
-    warn "sovrascrivo $dst — diff:"
+    warn "overwriting $dst — diff:"
     diff -u "$dst" "$src" | sed 's/^/     /' || true
-    confirm "procedo con $dst?" || { warn "saltato $dst"; return 0; }
+    confirm "proceed with $dst?" || { warn "skipped $dst"; return 0; }
     cp -a "$dst" "$dst.bak.$(date +%Y%m%d%H%M%S)"
   fi
   install -D -m "$mode" "$src" "$dst"
-  ok "scritto $dst"
+  ok "written $dst"
 }
 
-# CPU del socket indicato (default 1). Vuoto se la macchina è single-socket.
+# CPUs of the given socket (default 1). Empty if the machine is single-socket.
 socket_cpus() {
   local node="${1:-1}"
   lscpu -p=CPU,NODE 2>/dev/null | grep -v '^#' | awk -F, -v n="$node" '$2==n{print $1}' | paste -sd,

@@ -1,7 +1,7 @@
 {% if error %}
   <p class="empty" style="color:var(--bad)">{{ error }}</p>
 {% elif not results %}
-  <p class="empty">Nessun risultato.</p>
+  <p class="empty">No results.</p>
 {% else %}
 {% set best = results | selectattr('tokens_per_s_mean') | map(attribute='tokens_per_s_mean') | list %}
 {% set top = best | max if best else 0 %}
@@ -9,10 +9,10 @@
 <table>
   <thead>
     <tr>
-      <th>Servizio</th><th>Modello</th>
+      <th>Service</th><th>Model</th>
       <th class="num">OK</th>
       <th class="num">TTFT p50</th><th class="num">TTFT p95</th>
-      <th class="num">Totale p50</th>
+      <th class="num">Total p50</th>
       <th class="num">Token/s</th><th class="num">Token out</th>
     </tr>
   </thead>
@@ -38,8 +38,8 @@
 </table>
 </div>
 <p class="empty" style="padding-top:10px">
-  TTFT = tempo al primo token, in millisecondi. Token/s è misurato sulla sola fase di
-  generazione, escluso il TTFT.{% if req %} Prompt: «{{ req.prompt[:120] }}{% if req.prompt|length > 120 %}…{% endif %}»{% endif %}
+  TTFT = time to first token, in milliseconds. Token/s is measured on the generation
+  phase only, excluding TTFT.{% if req %} Prompt: «{{ req.prompt[:120] }}{% if req.prompt|length > 120 %}…{% endif %}»{% endif %}
 </p>
 <div hx-get="/ui/history" hx-target="#history" hx-trigger="load" hx-swap="innerHTML"></div>
 {% endif %}
