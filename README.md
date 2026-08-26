@@ -1,3 +1,5 @@
+![AES Inference Lab — a giant model on a small PC](docs/img/banner.png)
+
 # AES Inference Lab
 
 A test bench and dashboard for **self-hosted** inference servers: check that the
