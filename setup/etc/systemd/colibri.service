@@ -1,11 +1,20 @@
+# colibri rifiuta di ascoltare oltre il loopback senza COLI_API_KEY: se
+# COLI_HOST non e' 127.0.0.1 la chiave (da ${SECRETS_FILE}) e' obbligatoria.
 [Unit]
 Description=colibri inference server (GLM-5.2)
 After=local-fs.target
 RequiresMountsFor=${MODELS_DIR}
+# Senza freno, un ExecStart che muore subito viene rilanciato all'infinito:
+# 1447 riavvii in silenzio e' esattamente cio' che e' successo in produzione.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 User=root
+# COLI_API_KEY sta in un file a 0640, non in una Environment= qui: le unit
+# sono leggibili da tutti (0644, 'systemctl cat' non richiede privilegi).
+EnvironmentFile=${SECRETS_FILE}
 WorkingDirectory=${OPT_DIR}/colibri/c
 Environment=COLI_MODEL=${COLIBRI_MODEL_DIR}
 Environment=COLI_NUMA=1
@@ -13,9 +22,12 @@ Environment=CUDA_EXPERT_GB=${COLI_CUDA_EXPERT_GB}
 Environment=COLI_CUDA_PIPE=2
 Environment=PIPE=1
 Environment=PILOT=1
+# Nomi extra accettati dalla guardia DNS-rebinding, oltre al loopback e
+# all'indirizzo di bind: serve per l'Host che manda il container.
+Environment=COLI_ALLOWED_HOSTS=${COLI_ALLOWED_HOSTS}
 ExecStart=/usr/bin/python3 ${OPT_DIR}/colibri/c/coli serve \
   --model ${COLIBRI_MODEL_DIR} \
-  --host 127.0.0.1 --port ${PORT_COLIBRI} \
+  --host ${COLI_HOST} --port ${PORT_COLIBRI} \
   --model-id ${COLI_MODEL_ID} \
   --vram ${COLI_VRAM_GB} \
   --kv-slots ${COLI_KV_SLOTS} \

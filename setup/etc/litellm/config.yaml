@@ -33,11 +33,16 @@ model_list:
     litellm_params:
       model: openai/glm52
       api_base: http://127.0.0.1:${PORT_COLIBRI}/v1
-      api_key: dummy
+      # colibri ora richiede una chiave: 'dummy' prenderebbe 401.
+      # Il valore arriva dall'ambiente della unit, che legge il file dei
+      # segreti condiviso (SECRETS_FILE, 0640 root:inference): non e' scritto
+      # qui dentro, perche' questo config e' 0644.
+      api_key: os.environ/COLI_API_KEY
       timeout: 5400        # 90 min: un report da 4k token a ~1,5 tok/s
 
   # ── Tier qualita', opzione B: Claude ──────────────────────
-  # Attivo solo se ANTHROPIC_API_KEY e' valorizzata in /etc/litellm/env.
+  # Attivo solo se ANTHROPIC_API_KEY e' valorizzata in /etc/litellm/env
+  # (0600), il file dei segreti del solo gateway.
   - model_name: quality-cloud
     litellm_params:
       model: ${LITELLM_CLOUD_MODEL}

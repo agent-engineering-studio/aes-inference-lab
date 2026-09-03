@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT/lib/common.sh"
 
 PHASES=(01-autoconfig 02-preflight 10-system-tuning 20-build-inference 30-fetch-models
-        40-install-services 50-docker-tuning 90-verify)
+        40-install-services 45-firewall 50-docker-tuning 90-verify)
 
 ARGS=()
 for a in "$@"; do

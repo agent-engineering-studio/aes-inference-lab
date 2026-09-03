@@ -2,18 +2,22 @@
 Description=llama.cpp embedding server (Qwen3-Embedding-0.6B, CPU)
 After=local-fs.target
 RequiresMountsFor=${MODELS_DIR}
+# Un crash loop deve fermarsi ed essere visibile, non consumare la macchina.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
+EnvironmentFile=${SECRETS_FILE}
 # -ub DEVE essere >= -c: i modelli di embedding hanno attenzione non causale
 # e un ubatch inferiore alla sequenza fa fallire la richiesta.
 ExecStart=${OPT_DIR}/llama.cpp/build/bin/llama-server \
-  --host 127.0.0.1 --port ${PORT_EMBED} \
+  --host ${LLAMA_EMBED_HOST} --port ${PORT_EMBED} \
   --model ${GGUF_DIR}/${HF_EMBED_FILE} \
   --embedding --pooling last --embd-normalize 2 \
   -c 8192 -ub 8192 -ngl 0 -t 6
 Restart=always
-RestartSec=5
+RestartSec=10
 AllowedCPUs=${SOCKET1_CPUS}
 MemoryHigh=2G
 Nice=5

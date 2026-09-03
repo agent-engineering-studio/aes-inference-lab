@@ -83,6 +83,64 @@ Model names exposed by the gateway: `fast` (4B), `chat` (8B),
 `extract` (4B for throughput), `embed`, `quality-local` (colibrì),
 `quality-cloud` (Claude).
 
+## The colibrì API key
+
+colibrì refuses to listen beyond the loopback without a key and exits 1:
+
+```
+refusing to bind 0.0.0.0 beyond localhost without COLI_API_KEY set
+```
+
+With `Restart=always` that is a silent crash loop — it once reached **1447
+restarts** before anyone looked. The units now carry
+`StartLimitIntervalSec=300` / `StartLimitBurst=5`, so a service that cannot
+start stops and goes to `failed` instead of restarting forever, and phase 90
+fails when `NRestarts` is above 3.
+
+**Where it lives.** A single file shared by every unit:
+
+| | |
+|---|---|
+| path | `/etc/inference/secrets.env` (`SECRETS_FILE` in `.env`) |
+| mode | `0640 root:inference`, directory `0750` |
+| format | `COLI_API_KEY=<hex>`, one `KEY=value` per line, no `export`, no quotes |
+| created by | phase 40, with `openssl rand -hex 32`, **only if absent** |
+
+Phase 40 never rewrites the file: re-running `sudo ./install.sh 40` leaves the
+existing key in place, so the consumers still holding it keep working. To pin a
+specific key instead of a generated one, set `COLI_API_KEY` in `.env` *before*
+the first run.
+
+The units read it with `EnvironmentFile=`, never `Environment=`: unit files are
+`0644` and `systemctl cat` needs no privileges, so a key written into a
+directive would be readable by every user on the machine. LiteLLM picks it up
+from its own environment through `api_key: os.environ/COLI_API_KEY`.
+
+**How to rotate it.**
+
+```bash
+sudo sh -c 'umask 027; printf "COLI_API_KEY=%s\n" "$(openssl rand -hex 32)" \
+            > /etc/inference/secrets.env'
+sudo chown root:inference /etc/inference/secrets.env
+sudo systemctl restart colibri litellm
+sudo ./install.sh 90            # confirms the new key reached both processes
+```
+
+Anything that talks to colibrì **directly** (not through the gateway) holds a
+copy of the old key and has to be updated in the same pass — phase 90 only
+checks the units it installed.
+
+**Why not `COLI_ALLOW_INSECURE_BIND=1`.** It switches colibrì's check off
+instead of satisfying it, leaving an unauthenticated engine on `0.0.0.0`. The
+firewall is not a substitute: `ufw` limits access to the docker subnets, and
+every container on those subnets — including the ones belonging to other
+projects — would then reach the engine with no credential at all. Phase 40
+refuses to run if the variable is set.
+
+`--host 127.0.0.1` is not the answer either: containers reach the host through
+the bridge address (`host.docker.internal`), never through its loopback, so a
+loopback bind leaves the dashboard with the gateway alone.
+
 ## Why the GPU goes to the small models
 
 6 GB of expert tiers in VRAM hold ~315 of GLM-5.2's 19,456 experts:
@@ -129,6 +187,10 @@ and when you don't want external dependencies.
   happen.
 - **`/srv/models` must stay writable**: colibrì writes `.coli_usage` and
   `.coli_kv` next to the weights.
+- **Ports and `ufw` rules must come from the same `PORT_*` variables**: a rule
+  left open on an old port (8081 after llama-swap moved to 8083) looks like the
+  new port is broken. Phase 45 removes its own rules whose port no longer
+  matches any service.
 - **The `/dev/nvmeXnY` names are not stable across reboots** on this
   hardware: the scripts use labels and UUIDs, never the direct devices.
 

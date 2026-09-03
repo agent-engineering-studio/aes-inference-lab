@@ -1,12 +1,16 @@
 [Unit]
 Description=llama-swap (modelli piccoli su GPU)
 After=network-online.target
+# Un crash loop deve fermarsi ed essere visibile, non consumare la macchina.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/llama-swap --config /etc/llama-swap/config.yaml --listen 127.0.0.1:${PORT_LLAMA_SWAP}
+EnvironmentFile=${SECRETS_FILE}
+ExecStart=/usr/local/bin/llama-swap --config /etc/llama-swap/config.yaml --listen ${LLAMA_SWAP_HOST}:${PORT_LLAMA_SWAP}
 Restart=always
-RestartSec=5
+RestartSec=10
 AllowedCPUs=${SOCKET1_CPUS}
 MemoryHigh=6G
 Nice=5
