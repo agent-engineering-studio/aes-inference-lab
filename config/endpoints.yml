@@ -28,6 +28,9 @@ endpoints:
     kind: direct
     role: chat
     base_url: ${COLIBRI_URL:-http://host.docker.internal:8070/v1}
+    # colibri richiede una chiave appena esce da localhost: senza, risponde
+    # 401 e la dashboard lo mostra offline senza spiegare perche'.
+    api_key: ${COLIBRI_API_KEY:-}
     default_model: ${COLIBRI_MODEL_ID:-glm52}
     note: disco + processore, lento per costruzione
     timeout_s: 1800

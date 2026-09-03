@@ -1,0 +1,138 @@
+# office-gdc.w3pro.it — reverse proxy
+#
+#   /            -> limen-frontend    (127.0.0.1:5173)  Vite dev server
+#   /api/        -> limen-api         (127.0.0.1:8080)  rotte gia' sotto /api
+#   /tiles/      -> limen-pg-tileserv (127.0.0.1:7800)  prefisso rimosso
+#   /inference   -> aes-inference-lab (127.0.0.1:8500)  prefisso conservato
+#
+# La radice va al frontend perche' e' l'unica cosa che si apre in un
+# browser; limen-api e' un'API e le sue rotte nascono gia' con /api, quindi
+# spostarla sotto quel prefisso non cambia un solo URL.
+#
+# Attivazione (il file in sites-enabled deve essere un SYMLINK, non una
+# copia: una copia resta ferma alla versione con cui e' stata fatta e le
+# modifiche successive non entrano mai in vigore):
+#   sudo cp setup/etc/nginx/office-gdc /etc/nginx/sites-available/office-gdc
+#   sudo ln -sfn /etc/nginx/sites-available/office-gdc \
+#                /etc/nginx/sites-enabled/office-gdc
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Richiede la map $connection_upgrade in /etc/nginx/conf.d/upgrade.conf
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name office-gdc.w3pro.it;
+
+    # Deve stare prima del redirect: le location hanno precedenza
+    # sul return solo se il return non e' a livello server.
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name office-gdc.w3pro.it;
+
+    # --- Variante A: Let's Encrypt (attualmente in uso) ---
+    ssl_certificate     /etc/letsencrypt/live/office-gdc.w3pro.it/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/office-gdc.w3pro.it/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/office-gdc.w3pro.it/chain.pem;
+
+    # --- Variante B: certificato WindTre ---
+    # fullchain.crt = Host.crt + DigiCert.crt (in quest'ordine).
+    # NON includere TrustRoot.crt: e' gia' nei trust store dei client.
+    # ssl_certificate     /etc/ssl/office-gdc/fullchain.crt;
+    # ssl_certificate_key /etc/ssl/office-gdc/privkey.key;
+    # ssl_trusted_certificate /etc/ssl/office-gdc/bundle.crt;
+
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 1.1.1.1 8.8.8.8 valid=300s;
+    resolver_timeout 5s;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+    # SAMEORIGIN e non DENY: la mappa del frontend usa iframe interni.
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+
+    access_log /var/log/nginx/office-gdc.access.log;
+    error_log  /var/log/nginx/office-gdc.error.log;
+
+    client_max_body_size 50m;
+
+    # --- AES Inference Lab ---------------------------------------------------
+    # proxy_pass SENZA URI finale: il prefisso /inference NON viene rimosso e
+    # arriva intero all'app, che lo conosce via LAB_ROOT_PATH=/inference.
+    # Starlette lo scarta da sola nel routing, e in cambio gli header Location
+    # dei redirect restano completi del prefisso.
+    location /inference {
+        proxy_pass http://127.0.0.1:8500;
+        include /etc/nginx/snippets/office-gdc-proxy.conf;
+        # Lo streaming SSE di /api/chat/stream non deve essere accumulato.
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+    }
+
+    # --- Limen API ------------------------------------------------------------
+    # Nessuno slash finale in proxy_pass: le rotte di limen-api nascono gia'
+    # con /api (APIRouter(prefix="/api/...")), quindi il prefisso va passato
+    # intero e non rimosso.
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/office-gdc-proxy.conf;
+        proxy_buffering off;
+        # Le elaborazioni con il modello locale possono durare minuti.
+        proxy_read_timeout 900s;
+    }
+
+    # Rotte di servizio dell'API che stanno fuori da /api.
+    location = /health      { proxy_pass http://127.0.0.1:8080; include /etc/nginx/snippets/office-gdc-proxy.conf; }
+    location = /openapi.json { proxy_pass http://127.0.0.1:8080; include /etc/nginx/snippets/office-gdc-proxy.conf; }
+    location = /docs        { proxy_pass http://127.0.0.1:8080; include /etc/nginx/snippets/office-gdc-proxy.conf; }
+    location = /redoc       { proxy_pass http://127.0.0.1:8080; include /etc/nginx/snippets/office-gdc-proxy.conf; }
+
+    # --- pg_tileserv ----------------------------------------------------------
+    # Slash finale in proxy_pass: /tiles/ viene rimosso, perche' pg_tileserv
+    # serve /collections/... dalla propria radice e non conosce il prefisso.
+    # Corrisponde a VITE_TILESERV_URL=https://$host/tiles.
+    location /tiles/ {
+        proxy_pass http://127.0.0.1:7800/;
+        include /etc/nginx/snippets/office-gdc-proxy.conf;
+        proxy_read_timeout 60s;
+        # I tile sono immutabili a parita' di parametri: vale la pena
+        # lasciarli in cache al browser.
+        proxy_buffering on;
+    }
+
+    # --- Limen frontend -------------------------------------------------------
+    # Vite in modalita' sviluppo: serve /@vite/client, /src/... e
+    # /node_modules/... dalla radice, e l'hot reload passa da un WebSocket
+    # sulla stessa origine. Da qui gli header Upgrade, gia' inclusi nello
+    # snippet. Richiede VITE_ALLOWED_HOSTS=office-gdc.w3pro.it: senza,
+    # Vite risponde "Blocked request. This host is not allowed."
+    location / {
+        proxy_pass http://127.0.0.1:5173;
+        include /etc/nginx/snippets/office-gdc-proxy.conf;
+        # Il dev server manda i moduli a pezzi: non accumularli.
+        proxy_buffering off;
+        # Il WebSocket dell'hot reload resta in silenzio a lungo: con un
+        # timeout breve nginx lo chiude e la pagina smette di aggiornarsi.
+        proxy_read_timeout 3600s;
+    }
+}

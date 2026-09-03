@@ -2,6 +2,9 @@
 (() => {
   "use strict";
 
+  /* Prefisso del reverse proxy ("" oppure "/inference"): vedi base.html. */
+  const BASE = document.body.dataset.root || "";
+
   /* ---------- theme ---------- */
   const root = document.documentElement;
   try {
@@ -40,14 +43,15 @@
     const sel = document.getElementById("c-endpoint");
     const body = {
       endpoint: sel.value,
-      model: document.getElementById("c-model").value.trim()
-             || sel.selectedOptions[0]?.dataset.default || "auto",
+      // Vuoto = lascia risolvere al server (pick_model). "auto" non e' un
+      // nome di modello: il gateway lo rifiuta con un 400.
+      model: document.getElementById("c-model").value.trim(),
       prompt: document.getElementById("c-prompt").value,
       max_tokens: Number(document.getElementById("c-max").value) || 256,
     };
 
     try {
-      const res = await fetch("/api/chat/stream", {
+      const res = await fetch(`${BASE}/api/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -116,12 +120,12 @@
     }
     eOut.innerHTML = '<p class="empty">Computing…</p>';
     try {
-      const res = await fetch("/api/embed", {
+      const res = await fetch(`${BASE}/api/embed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           endpoint: document.getElementById("e-endpoint").value,
-          model: document.getElementById("e-model").value.trim() || "embed",
+          model: document.getElementById("e-model").value.trim(),
           texts,
         }),
       });

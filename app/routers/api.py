@@ -72,15 +72,27 @@ async def delete_history() -> dict[str, int]:
     return {"deleted": storage.clear_history()}
 
 
+async def _resolve_model(ep, requested: str) -> str:
+    """Nome modello da usare: quello chiesto, altrimenti quello del servizio.
+
+    Evita di inoltrare un nome inventato: il gateway risponderebbe 400 con
+    'Invalid model name', errore che dal lato chiamante e' illeggibile.
+    """
+    if requested:
+        return requested
+    return pick_model(await check(ep), ep, requested)
+
+
 @router.post("/chat/stream")
 async def chat_stream(req: ChatRequest) -> StreamingResponse:
     ep = settings.by_id(req.endpoint)
     if ep is None:
         raise HTTPException(404, "endpoint sconosciuto")
+    model = await _resolve_model(ep, req.model)
 
     async def gen() -> AsyncIterator[str]:
         async for kind, payload in stream_chat(
-            ep, req.model, req.prompt, system=req.system,
+            ep, model, req.prompt, system=req.system,
             max_tokens=req.max_tokens, temperature=req.temperature,
         ):
             yield f"event: {kind}\ndata: {json.dumps(payload)}\n\n"
@@ -102,11 +114,12 @@ async def embeddings(req: EmbedRequest) -> EmbedResult:
     ep = settings.by_id(req.endpoint)
     if ep is None:
         raise HTTPException(404, "endpoint sconosciuto")
+    model = await _resolve_model(ep, req.model)
     try:
-        vectors, latency = await embed(ep, req.model, req.texts)
+        vectors, latency = await embed(ep, model, req.texts)
     except InferenceError as exc:
         raise HTTPException(502, str(exc)) from exc
     matrix = [[round(_cosine(a, b), 4) for b in vectors] for a in vectors]
-    return EmbedResult(model=req.model, dimensions=len(vectors[0]),
+    return EmbedResult(model=model, dimensions=len(vectors[0]),
                        latency_ms=round(latency, 1), texts=req.texts,
                        similarity=matrix)

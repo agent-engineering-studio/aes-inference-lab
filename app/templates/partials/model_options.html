@@ -1,0 +1,14 @@
+{# Opzioni del menu Model: interrogano il servizio selezionato, non una lista fissa,
+   perche' i nomi cambiano fra gateway (fast, chat, embed) e motore diretto (chat-4b). #}
+{% if not ep %}
+<option value="">— servizio non trovato —</option>
+{% elif status.error %}
+<option value="">— offline —</option>
+{% elif not status.models %}
+<option value="">— nessun modello esposto —</option>
+{% else %}
+{% set fallback = ep.default_model if ep.default_model in status.models else status.models[0] %}
+{% for m in status.models %}
+<option value="{{ m }}"{% if m == (selected or fallback) %} selected{% endif %}>{{ m }}</option>
+{% endfor %}
+{% endif %}

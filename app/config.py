@@ -32,6 +32,12 @@ def _as_bool(value: Any) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on", "si", "sì"}
 
 
+def _root_path() -> str:
+    """Normalizza LAB_ROOT_PATH in "" oppure "/prefisso" (senza slash finale)."""
+    prefix = os.environ.get("LAB_ROOT_PATH", "").strip().strip("/")
+    return f"/{prefix}" if prefix else ""
+
+
 @dataclass(frozen=True)
 class Endpoint:
     id: str
@@ -75,6 +81,9 @@ class Settings:
         default_factory=lambda: float(os.environ.get("HEALTH_TIMEOUT_S", "5")))
     default_prompt: str = field(
         default_factory=lambda: os.environ.get("DEFAULT_PROMPT", _DEFAULT_PROMPT))
+    # Prefisso sotto cui il reverse proxy espone la dashboard (es. "/inference").
+    # Vuoto quando la dashboard sta sulla radice del dominio.
+    root_path: str = field(default_factory=_root_path)
 
     def by_id(self, endpoint_id: str) -> Endpoint | None:
         return next((e for e in self.endpoints if e.id == endpoint_id), None)

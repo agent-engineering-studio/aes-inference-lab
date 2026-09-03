@@ -145,6 +145,40 @@ the free space where the models live.
 The container is limited to 512 MB and 1 CPU: the dashboard must not steal page cache
 from the inference engine, which is precisely the scarcest resource.
 
+### Behind a reverse proxy, under a path prefix
+
+To serve the dashboard somewhere other than the root of a domain, set the prefix in
+`.env` — the app needs to know it, otherwise every link and every HTMX call points
+outside the prefix:
+
+```bash
+LAB_ROOT_PATH=/inference
+# the bridge gateway, i.e. the address the proxy reaches the container from;
+# without it uvicorn ignores X-Forwarded-Proto and builds http:// redirects
+LAB_FORWARDED_ALLOW_IPS=172.18.0.1,127.0.0.1
+```
+
+`LAB_ROOT_PATH` becomes the FastAPI `root_path`, and from there `{{ root }}` in the
+templates and `document.body.dataset.root` in `app.js`. Leave it unset to serve on
+the root, which is what `make dev` does.
+
+On the nginx side `proxy_pass` must have **no trailing URI**, so the prefix reaches
+the app whole — Starlette strips it from the path itself, and in exchange the
+`Location` headers of redirects keep the prefix:
+
+```nginx
+location /inference {
+    proxy_pass http://127.0.0.1:8500;      # no trailing slash: prefix preserved
+    proxy_buffering off;                   # /api/chat/stream is SSE
+    # … the usual proxy_set_header Host / X-Forwarded-* block
+}
+```
+
+A ready-made vhost is in `setup/etc/nginx/office-gdc`; its header comments carry the
+install commands. Note that `sites-enabled/` must hold a **symlink**: a plain copy
+freezes the config at the moment it was made, and later edits to `sites-available/`
+silently never take effect.
+
 ---
 
 ## Command line
@@ -238,7 +272,7 @@ tests/            14 tests on client, benchmark and API
 setup/            provisioning of the inference server (see setup/README.md)
   install.sh      phase orchestrator
   scripts/        the phases 01→90 (autoconfig, preflight, build, services…)
-  etc/            configuration templates (litellm, llama-swap, systemd…)
+  etc/            configuration templates (litellm, llama-swap, nginx, systemd…)
   lib/            shared functions for the scripts
   bench/          low-level A/B (DIRECT=1, page cache)
   docs/           storage.md and generated reports

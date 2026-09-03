@@ -21,7 +21,9 @@ class EndpointStatus(BaseModel):
 
 class ChatRequest(BaseModel):
     endpoint: str
-    model: str
+    # Vuoto = lo risolve il server con pick_model: il chiamante non deve
+    # conoscere i nomi esposti dal servizio.
+    model: str = ""
     prompt: str
     system: str | None = None
     max_tokens: int = Field(default=256, ge=1, le=8192)
@@ -65,7 +67,7 @@ class BenchResult(BaseModel):
 
 class EmbedRequest(BaseModel):
     endpoint: str
-    model: str
+    model: str = ""
     texts: list[str] = Field(min_length=2, max_length=16)
 
 
