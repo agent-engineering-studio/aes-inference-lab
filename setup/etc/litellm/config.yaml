@@ -40,6 +40,22 @@ model_list:
       api_key: os.environ/COLI_API_KEY
       timeout: 5400        # 90 min: un report da 4k token a ~1,5 tok/s
 
+  # colibri per nome proprio, SENZA fallback. La differenza con
+  # quality-local non e' il modello ma la semantica del guasto: se colibri
+  # non risponde, quality-local ti da' Claude e tu non te ne accorgi, glm52
+  # ti da' un errore. Serve a chi vuole *questo* modello — un confronto fra
+  # modelli, una valutazione, un test di regressione — dove ricevere in
+  # silenzio le risposte di un altro modello invalida il risultato.
+  #
+  # Nessuna voce in router_settings.fallbacks qui sotto: e' l'omissione che
+  # implementa il comportamento.
+  - model_name: glm52
+    litellm_params:
+      model: openai/glm52
+      api_base: http://127.0.0.1:${PORT_COLIBRI}/v1
+      api_key: os.environ/COLI_API_KEY
+      timeout: 5400
+
   # ── Tier qualita', opzione B: Claude ──────────────────────
   # Attivo solo se ANTHROPIC_API_KEY e' valorizzata in /etc/litellm/env
   # (0600), il file dei segreti del solo gateway.
