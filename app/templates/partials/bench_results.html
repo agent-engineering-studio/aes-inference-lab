@@ -41,5 +41,5 @@
   TTFT = time to first token, in milliseconds. Token/s is measured on the generation
   phase only, excluding TTFT.{% if req %} Prompt: «{{ req.prompt[:120] }}{% if req.prompt|length > 120 %}…{% endif %}»{% endif %}
 </p>
-<div hx-get="/ui/history" hx-target="#history" hx-trigger="load" hx-swap="innerHTML"></div>
+<div hx-get="{{ root }}/ui/history" hx-target="#history" hx-trigger="load" hx-swap="innerHTML"></div>
 {% endif %}

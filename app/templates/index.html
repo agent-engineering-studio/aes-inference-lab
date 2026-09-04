@@ -8,7 +8,7 @@
     <span class="eyebrow">refresh every 3 s</span>
   </header>
   <div class="body tight"
-       hx-get="/ui/resources" hx-trigger="load, every 3s" hx-swap="innerHTML">
+       hx-get="{{ root }}/ui/resources" hx-trigger="load, every 3s" hx-swap="innerHTML">
     <p class="empty">Reading resources…</p>
   </div>
 </section>
@@ -18,11 +18,11 @@
     <h2>Inference services</h2>
     <span class="spacer"></span>
     <span class="spin">checking…</span>
-    <button class="ghost sm" hx-get="/ui/services" hx-target="#services"
+    <button class="ghost sm" hx-get="{{ root }}/ui/services" hx-target="#services"
             hx-swap="innerHTML" hx-indicator="closest header">recheck</button>
   </header>
   <div class="body tight" id="services"
-       hx-get="/ui/services" hx-trigger="every 15s" hx-swap="innerHTML">
+       hx-get="{{ root }}/ui/services" hx-trigger="every 15s" hx-swap="innerHTML">
     {% include "partials/services.html" %}
   </div>
 </section>
@@ -32,7 +32,7 @@
   <section class="panel">
     <header><h2>Benchmark</h2><span class="spacer"></span><span class="spin">running…</span></header>
     <div class="body">
-      <form hx-post="/ui/bench" hx-target="#bench-results" hx-swap="innerHTML"
+      <form hx-post="{{ root }}/ui/bench" hx-target="#bench-results" hx-swap="innerHTML"
             hx-indicator="closest .panel">
         <div class="field">
           <label>Services to compare</label>
@@ -54,7 +54,8 @@
         <div class="row">
           <div class="field">
             <label for="b-model">Model</label>
-            <input id="b-model" type="text" name="model" placeholder="auto">
+            <input id="b-model" type="text" name="model"
+                   placeholder="vuoto = default di ogni servizio">
           </div>
           <div class="field">
             <label for="b-runs">Runs</label>
@@ -97,7 +98,12 @@
           </div>
           <div class="field">
             <label for="c-model">Model</label>
-            <input id="c-model" type="text" name="model" placeholder="auto">
+            <select id="c-model" name="model"
+                    hx-get="{{ root }}/ui/models" hx-include="#c-endpoint"
+                    hx-trigger="load, change from:#c-endpoint"
+                    hx-target="this" hx-swap="innerHTML">
+              <option value="">…</option>
+            </select>
           </div>
           <div class="field">
             <label for="c-max">Max tokens</label>
@@ -133,14 +139,21 @@
         <div class="field">
           <label for="e-endpoint">Service</label>
           <select id="e-endpoint" name="endpoint">
-            {% for e in endpoints if e.role in ('embedding', 'mixed', 'chat') %}
+            {# Solo chi sa fare embedding: un endpoint di sola chat non ha
+               /v1/embeddings e risponderebbe 404. #}
+            {% for e in endpoints if e.role in ('embedding', 'mixed') %}
             <option value="{{ e.id }}">{{ e.name }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="field">
           <label for="e-model">Model</label>
-          <input id="e-model" type="text" name="model" placeholder="e.g. embed">
+          <select id="e-model" name="model"
+                  hx-get="{{ root }}/ui/models" hx-include="#e-endpoint"
+                  hx-trigger="load, change from:#e-endpoint"
+                  hx-target="this" hx-swap="innerHTML">
+            <option value="">…</option>
+          </select>
         </div>
       </div>
       <div class="field">
@@ -159,7 +172,7 @@ The unused experts stay idle on the solid-state drive.</textarea>
   <header>
     <h2>Run history</h2>
     <span class="spacer"></span>
-    <button class="ghost sm" hx-delete="/ui/history" hx-target="#history"
+    <button class="ghost sm" hx-delete="{{ root }}/ui/history" hx-target="#history"
             hx-swap="innerHTML" hx-confirm="Clear the entire history?">clear</button>
   </header>
   <div class="body tight" id="history">

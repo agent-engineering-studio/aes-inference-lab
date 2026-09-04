@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, storage
+from .config import settings
 from .routers import api, ui
 
 
@@ -22,6 +23,9 @@ app = FastAPI(
                 "(colibrì, llama.cpp, LiteLLM).",
     version=__version__,
     lifespan=lifespan,
+    # Impostato quando nginx serve la dashboard sotto un prefisso (LAB_ROOT_PATH):
+    # rende corretti /docs, openapi.json e gli URL generati nei template.
+    root_path=settings.root_path,
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

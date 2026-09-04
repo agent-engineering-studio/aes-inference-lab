@@ -12,6 +12,12 @@ services:
     environment:
       LAB_CONFIG: config/endpoints.yml
       LAB_DB_PATH: /app/data/lab.sqlite3
+      # Prefisso servito dal reverse proxy: "/inference" dietro nginx,
+      # vuoto se la dashboard sta sulla radice del dominio.
+      LAB_ROOT_PATH: ${LAB_ROOT_PATH:-}
+      # IP da cui uvicorn accetta gli header X-Forwarded-*: e' il gateway della
+      # rete bridge, l'indirizzo con cui nginx arriva al container.
+      FORWARDED_ALLOW_IPS: ${LAB_FORWARDED_ALLOW_IPS:-127.0.0.1}
       HOST_PROC: /host/proc
       MODELS_PATH: ${MODELS_PATH:-/srv/models}
     ports:
@@ -24,7 +30,13 @@ services:
       # per mostrare lo spazio libero dove risiedono i modelli (sola lettura)
       - ${MODELS_PATH:-/srv/models}:${MODELS_PATH:-/srv/models}:ro
     extra_hosts:
-      # permette di raggiungere i servizi in ascolto su 127.0.0.1 dell'host
+      # Da' un nome all'host (risolve nel gateway del bridge di default).
+      # ATTENZIONE: non basta a raggiungere i motori. Devono ascoltare su
+      # 0.0.0.0 -- un socket su 127.0.0.1 non e' raggiungibile da qui -- e ufw
+      # deve consentire il traffico dai bridge docker verso l'host, perche' con
+      # DEFAULT_INPUT_POLICY=DROP quei pacchetti finiscono in INPUT e cadono.
+      # Le porte pubblicate da altri container passano invece per le catene di
+      # docker e non sono soggette a questa regola.
       - "host.docker.internal:host-gateway"
     # Limiti prudenti: la dashboard non deve rubare page cache al motore.
     deploy:
@@ -49,3 +61,14 @@ services:
 
 volumes:
   lab-data:
+
+networks:
+  # Subnet fissata di proposito. Con l'assegnazione automatica la rete
+  # cambia indirizzo (e il bridge cambia nome) a ogni ricreazione, e la
+  # regola ufw che autorizza il container a raggiungere i motori
+  # sull'host smetterebbe di combaciare senza dare errore.
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1

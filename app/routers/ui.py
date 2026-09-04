@@ -9,13 +9,24 @@ from fastapi.templating import Jinja2Templates
 
 from .. import storage
 from ..config import settings
-from ..health import check_all
+from ..health import check, check_all
 from ..metrics import snapshot
 from ..models import BenchRequest
 from .api import bench as run_bench
 
 router = APIRouter(tags=["ui"])
-templates = Jinja2Templates(directory="app/templates")
+
+
+def _root(request: Request) -> dict[str, str]:
+    """Espone il prefisso del reverse proxy come {{ root }} in ogni template.
+
+    Vale "" sulla radice e "/inference" dietro nginx, cosi' i link e le
+    chiamate HTMX restano validi in entrambi i casi.
+    """
+    return {"root": request.scope.get("root_path", "").rstrip("/")}
+
+
+templates = Jinja2Templates(directory="app/templates", context_processors=[_root])
 
 
 def _fmt(value: float | None, digits: int = 0, suffix: str = "") -> str:
@@ -55,6 +66,18 @@ async def ui_services(request: Request) -> HTMLResponse:
 async def ui_resources(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "partials/resources.html",
                                       {"res": snapshot()})
+
+
+@router.get("/ui/models", response_class=HTMLResponse)
+async def ui_models(request: Request, endpoint: str = "",
+                    selected: str = "") -> HTMLResponse:
+    """Opzioni del menu Model per il servizio scelto, interrogato dal vivo."""
+    ep = settings.by_id(endpoint)
+    return templates.TemplateResponse(request, "partials/model_options.html", {
+        "ep": ep,
+        "status": await check(ep) if ep else None,
+        "selected": selected,
+    })
 
 
 @router.post("/ui/bench", response_class=HTMLResponse)
